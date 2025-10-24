@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Heart Status Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #e6f9e6, #c2f0c2);
+      margin: 0; padding: 0; color: #333;
+    }
+
+    .container, .dashboard {
+      max-width: 1000px;
+      margin: 30px auto;
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    input, button {
+      width: 100%; padding: 10px; margin: 10px 0;
+      border: 1px solid #ccc; border-radius: 5px;
+    }
+
+    button {
+      background: #28a745; color: white; font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover { background: #218838; }
+
+    .tab, .tab-content { margin-top: 20px; }
+
+    .tab { display: flex; gap: 10px; }
+    .tab button {
+      padding: 10px;
+      background: #d4edda;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .tab button.active { background: #28a745; color: white; }
+
+    .tab-content > div { display: none; }
+    .tab-content > div.active { display: block; }
+
+    canvas {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+    }
+
+    .status-indicator {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+
+    .status-connected {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .status-disconnected {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .value-display {
+      font-size: 24px;
+      color: #28a745;
+      margin: 10px 0;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login Page -->
+  <div class="container" id="login-page">
+    <h1>Heart Status Tracker</h1>
+
+    <h3>Login</h3>
+    <p id="login-error" style="color: red; display: none;">Invalid credentials</p>
+    <form id="login-form">
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <button type="submit">Login</button>
+    </form>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboard" style="display: none;">
+    <div class="tab">
+      <button onclick="showTab('home')" class="active">Home</button>
+      <button onclick="showTab('ecg')">ECG</button>
+      <button onclick="showTab('pulse')">Pulse</button>
+      <button onclick="showTab('temp')">Temperature</button>
+      <button onclick="logout()" style="margin-left:auto; background:#dc3545;">Logout</button>
+    </div>
+
+    <div class="tab-content">
+      <div id="home" class="active">
+        <h2>Doctor Dashboard - Heart Status Tracker</h2>
+        <div id="connection-status" class="status-indicator status-disconnected">
+          Status: Connecting to sensors...
+        </div>
+        <p>
+          This secure web portal is exclusively developed for licensed medical professionals to monitor critical heart-related health data of patients in real time.
+        </p>
+        <ul>
+          <li><strong>ECG Sensor:</strong> View continuous electrocardiogram readings and waveform visualization</li>
+          <li><strong>Pulse Sensor:</strong> Monitor real-time pulse rate and detect abnormalities</li>
+          <li><strong>Temperature Sensor:</strong> Access body temperature trends that may signal potential issues</li>
+        </ul>
+        <p>
+          This is designed to improve response time in critical care settings by allowing cardiologists and healthcare teams to access live data and trends from anywhere within the hospital network.
+        </p>
+        <p style="color: blue; font-weight: bold;">
+          🟢 Demo Mode: Currently showing simulated sensor data for testing purposes.
+        </p>
+      </div>
+
+      <div id="ecg">
+        <h3>ECG Sensor</h3>
+        <p>Live ECG waveform from monitoring hardware.</p>
+        <div id="ecg-value" class="value-display">
+          ECG: -- mV
+        </div>
+        <canvas id="ecgChart" height="100"></canvas>
+      </div>
+
+      <div id="pulse">
+        <h3>Pulse Sensor</h3>
+        <p>Live Pulse Rate monitoring.</p>
+        <div id="pulse-value" class="value-display">
+          Pulse: -- BPM
+        </div>
+        <canvas id="pulseChart" height="100"></canvas>
+      </div>
+
+      <div id="temp">
+        <h3>Temperature Sensor</h3>
+        <p>Live Temperature data stream.</p>
+        <div id="temp-value" class="value-display">
+          Temperature: -- °C
+        </div>
+        <canvas id="tempChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const defaultEmail = "patient1@gmail.com";
+    const defaultPassword = "12345";
+
+    document.getElementById("login-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      if (email === defaultEmail && password === defaultPassword) {
+        document.getElementById("login-page").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        document.getElementById("login-error").style.display = "none";
+      } else {
+        document.getElementById("login-error").style.display = "block";
+      }
+    });
+
+    function logout() {
+      document.getElementById("dashboard").style.display = "none";
+      document.getElementById("login-page").style.display = "block";
+      document.getElementById("login-form").reset();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content > div').forEach(div => div.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      document.querySelectorAll('.tab button').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    const ctxTemp = document.getElementById('tempChart').getContext('2d');
+    const ctxPulse = document.getElementById('pulseChart').getContext('2d');
+    const ctxEcg = document.getElementById('ecgChart').getContext('2d');
+
+    const tempChart = new Chart(ctxTemp, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Temp (°C)', data: [], borderColor: '#dc3545', backgroundColor: 'rgba(220, 53, 69, 0.1)', fill: true }] },
+      options: { responsive: true, scales: { y: { beginAtZero: false, min: 35, max: 40 } } }
+    });
+
+    const pulseChart = new Chart(ctxPulse, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Pulse (BPM)', data: [], borderColor: '#28a745', backgroundColor: 'rgba(40, 167, 69, 0.1)', fill: true }] },
+      options: { responsive: true, scales: { y: { beginAtZero: false, min: 50, max: 120 } } }
+    });
+
+    const ecgChart = new Chart(ctxEcg, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'ECG (mV)', data: [], borderColor: '#007bff', backgroundColor: 'rgba(0, 123, 255, 0.1)', fill: true }] },
+      options: { responsive: true, scales: { y: { beginAtZero: false } } }
+    });
+
+    let dataReceived = false;
+
+    async function fetchSensorData() {
+      try {
+        const res = await fetch("/sensor-data");
+        const data = await res.json();
+        const time = new Date().toLocaleTimeString();
+
+        // Update status indicator
+        if (!dataReceived) {
+          document.getElementById('connection-status').className = 'status-indicator status-connected';
+          document.getElementById('connection-status').textContent = '🟢 Status: Connected - Receiving live data';
+          dataReceived = true;
+        }
+
+        // Update value displays
+        document.getElementById('temp-value').textContent = `Temperature: ${data.temp} °C`;
+        document.getElementById('pulse-value').textContent = `Pulse: ${data.pulse} BPM`;
+        document.getElementById('ecg-value').textContent = `ECG: ${data.ecg} mV`;
+
+        const pushData = (chart, value) => {
+          chart.data.labels.push(time);
+          chart.data.datasets[0].data.push(value);
+          if (chart.data.labels.length > 20) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+          }
+          chart.update('none');
+        };
+
+        pushData(tempChart, data.temp);
+        pushData(pulseChart, data.pulse);
+        pushData(ecgChart, data.ecg);
+
+      } catch (err) {
+        console.warn("Error fetching sensor data:", err);
+        document.getElementById('connection-status').className = 'status-indicator status-disconnected';
+        document.getElementById('connection-status').textContent = '🔴 Status: Connection error';
+      }
+    }
+
+    // Start fetching data every 2 seconds
+    setInterval(fetchSensorData, 2000);
+    
+    // Initial fetch
+    fetchSensorData();
+  </script>
+</body>
+</html>
